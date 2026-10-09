@@ -23,51 +23,32 @@ comparison under matched target requirements.
 \section{Introduction}
 \label{sec:intro}
 
-\textbf{Text-to-image models now ship as products, and stacked defenses ship with them.}
-OpenAI's GPT-Image-2 \citep{openaiimage2} and Google's Nano Banana \citep{nanobanana} support conversational generation and editing; deployers suppress content during sampling \citep{sld}, remove concepts from weights \citep{esd,safegen}, filter adversarial prompts \citep{guardt2i,latentguard}, and classify outputs against policy \citep{llavaguard,shieldgemma2}.
-Attacks---from prompt search \citep{sneakyprompt,ringabell} to semantic reformulation \citep{daca,mja} and stylistic rewriting \citep{aestheticcamouflage,modx}---are reported as attack success rate (ASR): the fraction of outputs a safety criterion flags \citep{aestheticcamouflage,pixjail}.
+\textbf{Text-to-image models are now commercial products, and layered defenses have grown alongside them:}
+content suppression during sampling \citep{sld}, concept erasure from weights \citep{esd,safegen}, adversarial-prompt filtering \citep{guardt2i,latentguard}, and output classification against policy \citep{llavaguard,shieldgemma2}.
+Attacks against these systems \citep{sneakyprompt,ringabell,daca,mja,aestheticcamouflage,modx} are reported almost uniformly as attack success rate (ASR): the fraction of outputs a safety criterion flags \citep{aestheticcamouflage,pixjail}.
 
-\textbf{ASR counts whether the criterion fires, not what the picture became.} A
-neutral, fully covering nude marble statue and a figure drawn in a specified
-pose at maximum anatomical exposure are worlds apart in generation difficulty
-and, to a human observer, in how sexual the content is---yet in ASR they are
-one and the same number. The judgment is usually made by detectors that localize
-anatomical regions \citep{nudenet}, whereas OpenAI's definition of sexual content
-turns on arousal and sexual activity rather than nudity itself
-\citep{openaimoderation}. The ruler and the definition disagree, and an
-aggregate rate hides the disagreement completely.
+\textbf{ASR records whether a criterion fires, not what the picture became.}
+OpenAI's content policy defines sexual content by arousal and sexual activity rather than nudity itself \citep{openaimoderation}.
+A nudity-based detector therefore rates a neutral classical nude marble statue and a figure drawn in a specified sexualized pose at maximum anatomical exposure alike, although the two differ sharply in generation difficulty and in what a human observer sees.
+Detectors such as NudeNet localize anatomical regions \citep{nudenet}; a single aggregate rate hides this disagreement, and with it what a model can actually be made to produce.
 
-\textbf{We measure these outcomes with \pact{}.} It decouples visual medium,
-anatomical exposure, and pose, judges each axis independently, then asks by
-conjunction whether they hold on one and the same figure and match the body
-configuration the input specified. A rate that answers only ``was an image
-returned, was it flagged'' becomes a statement about a concrete capability:
-which medium, how much exposure, and whether the pose is the one requested.
+\textbf{We introduce \pact{} (Pose-Aligned Conjunctive Testing), which is both a measurement framework and an auditing tool for defenders.}
+It assesses material, anatomical exposure, and pose independently, then requires all three to hold on one and the same figure and to match the body configuration the request specified.
+For a defender this localizes failure per axis---whether a model leaks a medium, an exposure level, or a pose---so filtering can be targeted rather than applied blindly to an aggregate rate.
+For a claim of attack success, it replaces ``an image was returned, and it was flagged'' with a statement about a concrete capability: which medium, how much exposure, and whether the pose is the one requested.
 
-\textbf{\inception{} takes its name from the film.} To plant an idea you cannot
-say it outright; you make the other side build it for you. Target content works
-the same way. Defenses judge intent at the level of the request, and
-\inception{} never issues the request that would be stopped. A scene first holds
-a work, and only the work holds the target figure: the figure becomes what the
-outer task must reproduce, its medium, exposure, and pose intact however the
-surrounding task is rewritten. On GPT-Image-2, the
-most heavily defended commercial model of this generation, where established
-attacks nearly fail, \inception{} still returns modern drawn figures with
-identifiable anatomical detail and sexualized posture---not neutral figures that
-merely changed medium.
+\textbf{We propose \inception{}, a prompt-only black-box attack that changes what the safety check inspects.}
+It generates a scene $T$ containing a carrier object $C$---a sketch, a painting, a photograph---where only $C$ depicts the target figure $X$, so that $X \subset C \subset T$.
+The check judges $T$, a legitimate outer task, while $X$ is produced only because completing $T$ logically requires it; the figure's material, exposure, and pose therefore survive any rewriting of the surrounding task.
+On GPT-Image-2, the most heavily defended model of this generation, \inception{} returns modern drawn figures with identifiable anatomical detail and sexualized posture.
+
+\textbf{We focus on sexual content specifically, not the broader NSFW category.}
+The two are not interchangeable: what we attack and measure is a definite capability, defined by explicit anatomical detail, a specified sexualized pose, and a rendering medium, not by a general content flag.
 
 \paragraph{Contributions.}
-\textbf{(i) A contextual embedding attack.} \inception{} is prompt-only and
-black-box; it separates the description of target content from the supporting
-context that carries it, rewriting the surrounding task while keeping explicit
-requirements on the figure's medium, exposure, and pose.
-\textbf{(ii) A level of target prior work does not reach.} On a target
-configuration where earlier strategies stall, \inception{} attains modern drawn
-medium, maximum anatomical exposure, and sexualized posture in one and the same
-figure.
-\textbf{(iii) A decoupled evaluation framework.} \pact{} judges medium,
-exposure, and pose independently and checks them conjunctively against the
-input's specified target, measuring the properties an ASR cannot measure.
+\textbf{(i) A contextual embedding attack.} \inception{} is prompt-only and black-box; it separates target content from its carrying context and moves the object of inspection from the target figure to the outer task.
+\textbf{(ii) A decoupled evaluation framework.} \pact{} judges material, exposure, and pose independently and conjunctively, exposing per-axis failure that an aggregate ASR cannot measure.
+\textbf{(iii) A defense-side filter.} \pact{} localizes which axis a model leaks, letting a defender block the specific failure mode instead of a blanket aggregate score.
 
 \begin{figure}[t]
 \centering
@@ -127,50 +108,41 @@ $\pi$ & Requested configuration & Match the required orientation, support, and l
 \label{sec:related}
 
 \paragraph{Existing attacks.}
-One line of work searches or optimizes in prompt space: SneakyPrompt searches
-tokens with reinforcement learning \citep{sneakyprompt}, Ring-A-Bell recovers
+Prior attacks operate on the request itself. SneakyPrompt searches tokens with
+reinforcement learning \citep{sneakyprompt}, Ring-A-Bell recovers
 concept-eliciting prompts \citep{ringabell}, MMA-Diffusion perturbs text and
 image together \citep{mmadiffusion}, DiffZOO confines the attacker to queries
-\citep{diffzoo}, JailFuzzer automates the search \citep{jailfuzzer}, and
-Reason2Attack trains an LLM to reason about adversarial prompts \citep{r2a}.
-Another line rewrites how the request is expressed: DACA decomposes intent
-\citep{daca}, PGJ substitutes perceptually similar wording \citep{pgj}, and MJA
-proceeds through metaphor \citep{mja}, with a further group rewriting requests
-within an artistic context \citep{aestheticcamouflage,modx,jpa}. Other work
-tests the robustness of defenses and concept erasure
-\citep{p4d,unlearndiffatk}, harmful rendered text \citep{etch,typo}, and
-combinations of individually safe concepts \citep{twohamsters}. These
-constructions change how a request is stated, and evaluation still falls to
-whether a safety criterion fires.
+\citep{diffzoo}, and JailFuzzer automates the search \citep{jailfuzzer}, with
+further methods that reword or reframe the request
+\citep{r2a,daca,pgj,mja,aestheticcamouflage,modx,jpa}. Related work further
+studies defense and concept-erasure robustness and related failure modes
+\citep{p4d,unlearndiffatk,etch,typo,twohamsters}. These constructions change how
+a request is stated, and evaluation still falls to ASR or its variants.
 
 \paragraph{Evaluating attack success.}
-The rankings above all rest on ASR, whose validity is under independent
-scrutiny: comparison requires commensurable measurement
-\citep{comparisonrequires}, uncertainty is underreported \citep{asrisnotanumber},
-and a single configuration does not characterize a method's outcomes
-\citep{singleconfig}. Image-based judging adds judge uncertainty, with
-documented dataset limitations \citep{nuditysota}, performance shifts between
-real and generated images \citep{unsafebench}, and stylistic bias in artistic
-nudity classification \citep{artcentric}. The criteria themselves disagree:
-NudeNet localizes anatomical regions \citep{nudenet}, while OpenAI defines
-sexual content by sexual arousal \citep{openaimoderation}; the two are not
-equivalent, and Low-Effort reports binary labels from three safety checkers
-\citep{aestheticcamouflage}. Calibrating against human labels, RISE finds that
-automated judges both overlook genuine violations and reward harmless
-borderline images on hardened APIs, and reports that previously published
-success rates fall to near zero under calibrated scoring \citep{rise}. Human
-verification fixes the label, not the unit of success: a mild output and one
-that jointly attains explicit anatomical detail, a specified sexualized pose,
-and the intended medium still count once each. Assessing material, anatomical
-exposure, and pose separately, and joining them against the configuration the
-input requested, makes the attained content visible in the comparison.
+Much of the reported progress is measured by ASR, whose reliability is
+increasingly questioned \citep{comparisonrequires,asrisnotanumber,singleconfig}.
+Image-based judges add further uncertainty, including dataset limitations
+\citep{nuditysota}, performance shifts between real and generated images
+\citep{unsafebench}, and stylistic bias in artistic nudity classification
+\citep{artcentric}. The underlying criteria are no more settled: nudity
+detectors such as NudeNet localize anatomical regions \citep{nudenet}, whereas
+OpenAI defines sexual content by sexual arousal \citep{openaimoderation}, so the
+two flag different images. RISE reaches a similar conclusion, finding that
+automated judges both overlook genuine violations and reward harmless borderline
+images on hardened APIs, and that previously reported success rates fall to near
+zero under calibrated scoring \citep{rise}. Even a verified label is not a unit
+of success: a mild output and one that jointly attains explicit anatomical
+detail, a specified sexualized pose, and the intended medium still count once
+each. Assessing material, anatomical exposure, and pose separately, and joining
+them against the configuration the input requested, makes the attained content
+visible.
 
 \paragraph{GPT-Image-2.}
 This is the most hardened commercial image-generation system available, and its
 system card describes safeguards at both the prompt and image layers
 \citep{openaiimage2}. Publicly available sexual-content output on this model is
-correspondingly scarce, and Table~\ref{tab:priorprofiles} collects what each
-method has published. Independent reproduction reaches the same conclusion: the
+correspondingly scarce. Independent reproduction reaches the same conclusion: the
 same eleven attacks that attain 52.7--96.7\% on SDXL reach only 0--3.9\% on
 GPT-Image-2 \citep{pixjail}, indicating that these attacks perform poorly on
 this model.
@@ -181,34 +153,6 @@ this model.
 \caption{\textbf{Existing attacks have limited effectiveness on GPT-Image-2.} Cross-category ASRs reproduced from Table~3 of \citet{pixjail}. The same eleven methods reach 52.7--96.7\% on SDXL and 0--3.9\% on GPT-Image-2. Panel (a) uses a common 0--100\% scale; panel (b) uses a 0--4\% scale to expose the low-ASR differences. Each row refers to the same method in both panels.}
 \label{fig:baselinecomparison}\label{fig:benchmark}
 \end{figure*}
-
-\begin{table*}[t]
-\centering\small
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.16}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.23\textwidth}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.10\textwidth}>{\raggedright\arraybackslash}p{0.055\textwidth}@{}}
-\toprule
-Method & Public sexual-content output & Material & Exposure & Pose \\
-\midrule
-Low-Effort \citep{aestheticcamouflage} & Not located & --- & --- & --- \\
-MODX \citep{modx} & Not located & --- & --- & --- \\
-PAST2HARM \citep{past2harm} & Not located & --- & --- & --- \\
-RISE \citep{rise} & Examples under low moderation &
-$M_1$: study plate; $M_3$: painting & Masked & $P_1$ \\
-\midrule
-\rowcolor{axisMbg}
-\textbf{Ours} & \textbf{Three configurations, Figure~\ref{fig:methodcontrol}} &
-\textbf{$M_3$: modern drawn human} & \textbf{$E_6$} & \textbf{$P_2$} \\
-\bottomrule
-\end{tabularx}
-\caption{\textbf{Public sexual-content evidence on GPT-Image-2.}
-Entries describe GPT-Image-2 outputs using Table~\ref{tab:axes}.
-``Not located'' indicates that we found no verifiable public sexual-content
-output on this model; the corresponding grades are left blank.
-RISE's examples show masked regions.
-PixJail's reproduction scores are reported separately in Figure~\ref{fig:baselinecomparison}.}
-\label{tab:priorprofiles}
-\end{table*}
 
 \section{PACT: Evaluating the Complete Visual Target}
 \label{sec:axes}
