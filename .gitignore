@@ -1,0 +1,20 @@
+# Snapshot allowlist: publish only main-paper sources and required figures.
+/*
+!/.gitignore
+!/README.md
+!/main.tex
+!/body.tex
+!/backmatter.tex
+!/references.bib
+!/acl.sty
+!/acl_natbib.bst
+!/build.sh
+!/assets/
+/assets/*
+!/assets/ukiyoe_nudenet_Z14.png
+!/assets/benchmark_transfer.pdf
+!/assets/method_seated.png
+!/assets/method_side.png
+!/assets/method_knee.png
+!/assets/method_halftone_T11.png
+!/assets/inception_layers.pdf
