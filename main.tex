@@ -70,4 +70,9 @@ before skip=8pt,after skip=3pt}
 \clearpage
 \input{backmatter}
 \bibliography{references}
+\clearpage
+\appendix
+\renewcommand{\thesection}{\AlphAlph{\value{section}}}
+\input{appendix}
+\label{page:last-appendix}
 \end{document}
